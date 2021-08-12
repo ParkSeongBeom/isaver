@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.icent.isaver.core.db.mapper.FenceMapper">
+    <!--
+      펜스 타입을 가져온다.
+      @author psb
+    -->
+    <select id="findByFence" parameterType="FenceBean" resultType="FenceBean">
+        SELECT  uuid as uuid
+                , fence_id as fenceId
+                , fence_type as fenceType
+                , fence_sub_type as fenceSubType
+                , device_id as deviceId
+                , fence_name as fenceName
+                , config as config
+                , custom_json as customJson
+        FROM    isaver.fence
+        WHERE   fence_id = #{fenceId}
+    </select>
+
+    <!--
+      카메라 펜스 목록을 가져온다.
+      @author psb
+    -->
+    <select id="findListCamera" parameterType="FenceBean" resultType="FenceBean">
+        select	a.device_id as deviceId
+	            ,c.ip_address as ipAddress
+        from	isaver.fence_device a
+        inner join isaver.fence b
+        on	    a.uuid = b.uuid
+        and	    b.device_id = #{deviceId}
+        and	    b.fence_id = #{fenceId}
+        LEFT OUTER JOIN isaver.device c
+        on	    a.device_id = c.device_id
+    </select>
+</mapper>

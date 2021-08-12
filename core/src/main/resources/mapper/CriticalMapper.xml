@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.icent.isaver.core.db.mapper.CriticalMapper">
+
+    <resultMap id="criticalResultMap" type="CriticalBean">
+        <id property="criticalId" column="criticalId"/>
+        <result property="eventId" column="eventId"/>
+        <result property="criticalLevel" column="criticalLevel"/>
+        <result property="criticalValue" column="criticalValue"/>
+        <result property="dashboardFileId" column="dashboardFileId"/>
+        <result property="physicalFileName" column="physicalFileName"/>
+        <collection property="criticalTargetList" ofType="CriticalTargetBean">
+            <result property="targetDeviceId" column="targetDeviceId"/>
+            <result property="alarmType" column="alarmType"/>
+            <result property="alarmMessage" column="alarmMessage"/>
+            <result property="alarmFileId" column="alarmFileId"/>
+        </collection>
+    </resultMap>
+
+    <!--
+        임계치 목록을 가져온다.
+        @author psb
+    -->
+    <select id="find" parameterType="java.util.Map" resultMap="criticalResultMap">
+        SELECT	cri.critical_id as criticalId
+                , cri.event_id as eventId
+                , cri.critical_level as criticalLevel
+                , cri.critical_value as criticalValue
+                , cri.dashboard_file_id as dashboardFileId
+                , (SELECT physical_file_name FROM isaver.file WHERE cri.dashboard_file_id = file.file_id) as physicalFileName
+                , detect.critical_detect_id as criticalDetectId
+                , target.target_device_id as targetDeviceId
+                , target.alarm_type as alarmType
+                , target.alarm_message as alarmMessage
+                , target.alarm_file_id as alarmFileId
+        FROM    isaver.critical cri
+        INNER JOIN (
+            SELECT  a.*
+            FROM    isaver.critical_detect a
+            LEFT OUTER JOIN isaver.critical_detect_config b
+            ON	    a.critical_detect_id = b.critical_detect_id
+            AND	    b.use_yn = 'Y'
+            WHERE	a.use_yn = 'Y'
+            AND	(
+                b.critical_detect_config_id is null OR #{eventDatetimeHMS} between b.start_datetime and b.end_datetime
+            )
+        ) detect
+        ON	    cri.critical_id = detect.critical_id
+        LEFT OUTER JOIN isaver.critical_target target
+        ON      detect.critical_detect_id = target.critical_detect_id
+        AND	    target.use_yn = 'Y'
+        WHERE	cri.event_id = #{eventId}
+        AND	    detect.detect_device_id = #{deviceId}
+        AND	    (cri.critical_value is null OR cri.critical_value <![CDATA[ <= ]]> ${value})
+        <if test="fenceId != null and fenceId != ''">
+            AND   detect.fence_id = #{fenceId}
+        </if>
+        ORDER BY cri.critical_level desc
+        LIMIT 1
+    </select>
+</mapper>

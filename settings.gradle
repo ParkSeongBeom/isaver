@@ -1,0 +1,4 @@
+rootProject.name = 'isaver'
+include 'core'
+include 'critical_agent'
+

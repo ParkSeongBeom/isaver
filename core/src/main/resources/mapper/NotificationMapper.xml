@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.icent.isaver.core.db.mapper.NotificationMapper">
+    <!--
+        알림센터를 저장한다. (해제, 확인)
+        @author psb
+    -->
+    <insert id="addNotification" parameterType="NotificationBean">
+        INSERT INTO isaver.notification(
+            notification_id
+            , event_log_id
+            , object_id
+            , fence_id
+            , status
+            , area_id
+            , device_id
+            , event_id
+            <if test="value != null">
+                , value
+            </if>
+            , critical_level
+            , event_datetime
+            , insert_user_id
+            , insert_datetime
+            <if test="fenceType != null and fenceType=='camera'">
+                , cancel_user_id
+                , cancel_datetime
+                , cancel_desc
+            </if>
+        ) VALUES (
+            #{notificationId}
+            ,#{eventLogId}
+            ,#{objectId}
+            ,#{fenceId}
+            ,#{status}
+            ,#{areaId}
+            ,#{deviceId}
+            ,#{eventId}
+            <if test="value != null">
+                , ${value}
+            </if>
+            ,#{criticalLevel}
+            ,#{eventDatetime}::timestamp
+            ,'api'
+            ,NOW()
+            <if test="fenceType != null and fenceType=='camera'">
+                , 'api'
+                , NOW()
+                , 'VMS camera event'
+            </if>
+        );
+    </insert>
+
+    <!--
+        알림센터를 저장한다. (해제)
+        @author psb
+    -->
+    <update id="saveNotification" parameterType="java.util.List">
+        <foreach collection="list" item="item" separator=";">
+            update  isaver.notification
+            set     update_user_id = 'critical_agent'
+                    , update_datetime = #{item.eventDatetime}::timestamp
+                    , status = #{item.status}
+                    <if test="item.lastValue != null and item.lastValue != ''">
+                        , last_value = ${item.lastValue}
+                    </if>
+            where   object_id = #{item.objectId}
+            AND     device_id = #{item.deviceId}
+            <if test="item.fenceId != null and item.fenceId != ''">
+                AND fence_id = #{item.fenceId}
+            </if>
+        </foreach>
+    </update>
+
+    <!--
+        횡단보도 잔존인원수를 가져온다.
+        @author psb
+    -->
+    <select id="findRemainCnt" parameterType="java.util.Map" resultType="java.lang.Integer">
+        select	count(a.notification_id)
+        from	isaver.notification a
+        inner join isaver.fence b
+        on	    a.fence_id = b.fence_id
+        and	    b.fence_sub_type = 'crosswalk'
+        where	a.area_id = #{areaId}
+        and	    a.event_datetime > (now() - interval '1 hour')
+        and	    a.event_id = 'EVT314'
+        and	    a.status = 'D'
+        and	    a.cancel_user_id is null
+    </select>
+
+    <!--
+        횡단보도 잔존인원수를 가져온다.
+        @author psb
+    -->
+    <select id="findRemainCntCustom" parameterType="java.util.Map" resultType="java.lang.Integer">
+        select	count(a.notification_id)
+        from	isaver.notification a
+        inner join isaver.fence b
+        on	    a.fence_id = b.fence_id
+        where	a.area_id = #{areaId}
+        and	    a.event_datetime > (now() - interval '1 hour')
+        and	    a.event_id = 'EVT314'
+        and	    a.status = 'D'
+        and	    a.cancel_user_id is null
+        <if test="fenceIds != null and fenceIds != ''">
+            and a.fence_id in
+            <foreach collection="fenceIds" item="item" index="index" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+    <!--
+        감지값을 가져온다.
+        @author psb
+    -->
+    <select id="findDetectNotification" parameterType="java.util.Map" resultType="NotificationBean">
+        select	critical_level as criticalLevel
+                ,value as value
+        from	isaver.notification
+        where   object_id = #{objectId}
+        and	    event_datetime > (now() - interval '3 hour')
+        AND     device_id = #{deviceId}
+        <if test="fenceId != null and fenceId != ''">
+            AND fence_id = #{fenceId}
+        </if>
+        order by event_datetime desc
+        limit 1
+    </select>
+</mapper>

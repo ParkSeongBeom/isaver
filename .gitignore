@@ -1,0 +1,6 @@
+# Project exclude paths
+/.gradle/
+/core/build/
+/core/build/classes/java/main/
+/critical_agent/build/
+/critical_agent/build/classes/java/main/
